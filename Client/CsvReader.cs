@@ -10,11 +10,9 @@ namespace Client
     {
         private StreamReader _reader;
         private bool _disposed = false;
-        private readonly string _filePath;
 
         public CsvReader(string filePath)
         {
-            _filePath = filePath;
             _reader = new StreamReader(filePath);
         }
 
