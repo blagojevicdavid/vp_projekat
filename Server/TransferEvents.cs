@@ -2,6 +2,11 @@ using System;
 
 namespace Server
 {
+    public delegate void TransferStartedHandler(object sender, TransferStartedEventArgs e);
+    public delegate void SampleReceivedHandler(object sender, SampleReceivedEventArgs e);
+    public delegate void TransferCompletedHandler(object sender, TransferCompletedEventArgs e);
+    public delegate void WarningRaisedHandler(object sender, WarningEventArgs e);
+
     public class TransferStartedEventArgs : EventArgs
     {
         public string VehicleId { get; }

@@ -11,10 +11,10 @@ namespace Server
     public class ChargingService : IChargingService, IDisposable
     {
         // --- Dogadjaji (Zadatak 8) ---
-        public event EventHandler<TransferStartedEventArgs> OnTransferStarted;
-        public event EventHandler<SampleReceivedEventArgs> OnSampleReceived;
-        public event EventHandler<TransferCompletedEventArgs> OnTransferCompleted;
-        public event EventHandler<WarningEventArgs> OnWarningRaised;
+        public event TransferStartedHandler OnTransferStarted;
+        public event SampleReceivedHandler OnSampleReceived;
+        public event TransferCompletedHandler OnTransferCompleted;
+        public event WarningRaisedHandler OnWarningRaised;
 
         // --- Stanje fajlova ---
         private FileStream _sessionFileStream;
