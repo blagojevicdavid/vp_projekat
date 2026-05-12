@@ -61,4 +61,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="CopyDataToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <DataFiles Include="$(ProjectDir)Data\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DataFiles)" DestinationFiles="@(DataFiles->'$(OutDir)Data\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
