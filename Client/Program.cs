@@ -63,11 +63,11 @@ namespace Client
                     foreach (var sample in csv.ReadRows(vehicleId, errorLog))
                     {
                         client.PushSample(sample);
-                        Console.WriteLine("Sent row: " + sample.RowIndex);
+                        Console.WriteLine("[prenos u toku] Poslat red: " + sample.RowIndex);
                     }
 
                     client.EndSession(vehicleId);
-                    Console.WriteLine("Transfer complete.");
+                    Console.WriteLine("[prenos završen] Svi redovi poslati za vozilo: " + vehicleId);
                 }
                 catch (Exception ex)
                 {
