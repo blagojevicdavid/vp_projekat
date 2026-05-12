@@ -10,15 +10,30 @@ namespace Server
     [ServiceBehavior(InstanceContextMode = InstanceContextMode.Single)]
     public class ChargingService : IChargingService, IDisposable
     {
+        // --- Dogadjaji (Zadatak 8) ---
+        public event EventHandler<TransferStartedEventArgs> OnTransferStarted;
+        public event EventHandler<SampleReceivedEventArgs> OnSampleReceived;
+        public event EventHandler<TransferCompletedEventArgs> OnTransferCompleted;
+        public event EventHandler<WarningEventArgs> OnWarningRaised;
+
+        // --- Stanje fajlova ---
         private FileStream _sessionFileStream;
         private StreamWriter _sessionWriter;
         private FileStream _rejectsFileStream;
         private StreamWriter _rejectsWriter;
         private bool _disposed = false;
 
+        // --- Stanje analitike (Zadaci 9 i 10) ---
+        private double _prevCurrentAvg = double.NaN;
+        private double _currentMean = 0;
+        private int _currentCount = 0;
+        private double _prevApparentPowerAvg = double.NaN;
+        private int _apparentPowerStallCount = 0;
+
         public void StartSession(string vehicleId)
         {
             CloseFileResources();
+            ResetAnalyticsState();
 
             string dataPath = ConfigurationManager.AppSettings["DataPath"] ?? "Data";
             string sessionDir = Path.Combine(dataPath, vehicleId, DateTime.Now.ToString("yyyy-MM-dd"));
@@ -47,8 +62,7 @@ namespace Server
             if (rejectsIsNew)
                 _rejectsWriter.WriteLine("RowIndex,VehicleId,Reason");
 
-            Console.WriteLine(string.Format("[{0}] Sesija pokrenuta - Vozilo: {1} -> {2}",
-                DateTime.Now, vehicleId, sessionDir));
+            OnTransferStarted?.Invoke(this, new TransferStartedEventArgs(vehicleId));
         }
 
         public void PushSample(ChargingData data)
@@ -61,15 +75,106 @@ namespace Server
             }
 
             WriteSessionRow(data);
-            Console.WriteLine(string.Format("[prenos u toku] Red {0} primljen - Vozilo: {1}",
-                data.RowIndex, data.VehicleId));
+            RunAnalytics(data);
+            OnSampleReceived?.Invoke(this, new SampleReceivedEventArgs(data.VehicleId, data.RowIndex));
         }
 
         public void EndSession(string vehicleId)
         {
             CloseFileResources();
-            Console.WriteLine(string.Format("[prenos završen] Sesija završena za vozilo: {0}", vehicleId));
+            OnTransferCompleted?.Invoke(this, new TransferCompletedEventArgs(vehicleId));
         }
+
+        // --- Analitika ---
+
+        private void ResetAnalyticsState()
+        {
+            _prevCurrentAvg = double.NaN;
+            _currentMean = 0;
+            _currentCount = 0;
+            _prevApparentPowerAvg = double.NaN;
+            _apparentPowerStallCount = 0;
+        }
+
+        private void RunAnalytics(ChargingData data)
+        {
+            double spikeThreshold = ParseConfig("CurrentSpikeThreshold", 5.0);
+            double reactivePowerThreshold = ParseConfig("ReactivePowerThreshold", 100.0);
+
+            // Zadatak 9: CurrentSpike - delta izmedju uzastopnih merenja
+            if (!double.IsNaN(_prevCurrentAvg))
+            {
+                double delta = data.CurrentAvg - _prevCurrentAvg;
+                if (Math.Abs(delta) > spikeThreshold)
+                {
+                    string direction = delta > 0 ? "porast" : "pad";
+                    RaiseWarning(data, "CurrentSpike", _prevCurrentAvg, data.CurrentAvg,
+                        string.Format(CultureInfo.InvariantCulture,
+                            "dI={0:F4} ({1})", delta, direction));
+                }
+            }
+            _prevCurrentAvg = data.CurrentAvg;
+
+            // Zadatak 9: CurrentOutOfBand - odstupanje +-20% od tekuceg proseka
+            if (_currentCount > 0)
+            {
+                double lower = 0.80 * _currentMean;
+                double upper = 1.20 * _currentMean;
+                if (data.CurrentAvg < lower || data.CurrentAvg > upper)
+                {
+                    RaiseWarning(data, "CurrentOutOfBand", _currentMean, data.CurrentAvg,
+                        string.Format(CultureInfo.InvariantCulture,
+                            "van opsega [{0:F4}, {1:F4}]", lower, upper));
+                }
+            }
+            _currentCount++;
+            _currentMean += (data.CurrentAvg - _currentMean) / _currentCount;
+
+            // Zadatak 10: ReactivePowerWarning - prelaz praga
+            if (data.ReactivePowerAvg > reactivePowerThreshold)
+            {
+                RaiseWarning(data, "ReactivePowerWarning", reactivePowerThreshold, data.ReactivePowerAvg,
+                    string.Format(CultureInfo.InvariantCulture,
+                        "ReactivePowerAvg={0:F4} > prag {1:F4}", data.ReactivePowerAvg, reactivePowerThreshold));
+            }
+
+            // Zadatak 10: ApparentPowerStall - stagnacija prividne snage (>=5 uzastopnih redova)
+            if (!double.IsNaN(_prevApparentPowerAvg))
+            {
+                if (data.ApparentPowerAvg <= _prevApparentPowerAvg)
+                {
+                    _apparentPowerStallCount++;
+                    if (_apparentPowerStallCount >= 5)
+                    {
+                        RaiseWarning(data, "ApparentPowerStall", _prevApparentPowerAvg, data.ApparentPowerAvg,
+                            string.Format("prividna snaga ne raste vec {0} redova", _apparentPowerStallCount));
+                    }
+                }
+                else
+                {
+                    _apparentPowerStallCount = 0;
+                }
+            }
+            _prevApparentPowerAvg = data.ApparentPowerAvg;
+        }
+
+        private void RaiseWarning(ChargingData data, string warningType,
+            double valueBefore, double valueAfter, string message)
+        {
+            OnWarningRaised?.Invoke(this, new WarningEventArgs(
+                data.VehicleId, data.RowIndex, warningType, valueBefore, valueAfter, message));
+        }
+
+        private double ParseConfig(string key, double defaultValue)
+        {
+            string raw = ConfigurationManager.AppSettings[key];
+            double result;
+            return double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out result)
+                ? result
+                : defaultValue;
+        }
+
+        // --- Validacija i fajlovi ---
 
         private string GetValidationError(ChargingData data)
         {

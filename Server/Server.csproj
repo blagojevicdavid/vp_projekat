@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="ChargingService.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="TransferEvents.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
