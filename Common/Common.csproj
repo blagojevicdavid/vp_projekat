@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="ChargingData.cs" />
     <Compile Include="IChargingService.cs" />
+    <Compile Include="SampleOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

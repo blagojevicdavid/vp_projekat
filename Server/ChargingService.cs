@@ -35,7 +35,9 @@ namespace Server
             CloseFileResources();
             ResetAnalyticsState();
 
-            string dataPath = ConfigurationManager.AppSettings["DataPath"] ?? "Data";
+            string dataPath = ConfigurationManager.AppSettings["DataPath"];
+            if (dataPath == null)
+                dataPath = "Data";
             string sessionDir = Path.Combine(dataPath, vehicleId, DateTime.Now.ToString("yyyy-MM-dd"));
             Directory.CreateDirectory(sessionDir);
 
@@ -62,11 +64,27 @@ namespace Server
             if (rejectsIsNew)
                 _rejectsWriter.WriteLine("RowIndex,VehicleId,Reason");
 
-            OnTransferStarted?.Invoke(this, new TransferStartedEventArgs(vehicleId));
+            if (OnTransferStarted != null)
+                OnTransferStarted(this, new TransferStartedEventArgs(vehicleId));
         }
 
-        public void PushSample(ChargingData data)
+        [OperationBehavior(AutoDisposeParameters = true)]
+        public void PushSample(SampleOptions options)
         {
+            if (options == null || options.Data == null || options.Data.Length == 0)
+                ThrowFault("Empty sample payload.");
+
+            ChargingData data;
+            try
+            {
+                data = ChargingData.FromBytes(options.Data);
+            }
+            catch (Exception ex)
+            {
+                ThrowFault("Failed to deserialize sample: " + ex.Message);
+                return;
+            }
+
             string error = GetValidationError(data);
             if (error != null)
             {
@@ -76,13 +94,15 @@ namespace Server
 
             WriteSessionRow(data);
             RunAnalytics(data);
-            OnSampleReceived?.Invoke(this, new SampleReceivedEventArgs(data.VehicleId, data.RowIndex));
+            if (OnSampleReceived != null)
+                OnSampleReceived(this, new SampleReceivedEventArgs(data.VehicleId, data.RowIndex));
         }
 
         public void EndSession(string vehicleId)
         {
             CloseFileResources();
-            OnTransferCompleted?.Invoke(this, new TransferCompletedEventArgs(vehicleId));
+            if (OnTransferCompleted != null)
+                OnTransferCompleted(this, new TransferCompletedEventArgs(vehicleId));
         }
 
         // --- Analitika ---
@@ -161,8 +181,9 @@ namespace Server
         private void RaiseWarning(ChargingData data, string warningType,
             double valueBefore, double valueAfter, string message)
         {
-            OnWarningRaised?.Invoke(this, new WarningEventArgs(
-                data.VehicleId, data.RowIndex, warningType, valueBefore, valueAfter, message));
+            if (OnWarningRaised != null)
+                OnWarningRaised(this, new WarningEventArgs(
+                    data.VehicleId, data.RowIndex, warningType, valueBefore, valueAfter, message));
         }
 
         private double ParseConfig(string key, double defaultValue)

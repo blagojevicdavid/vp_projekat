@@ -23,13 +23,16 @@ namespace Client
 
         public void PushSample(ChargingData data)
         {
-            try
+            using (SampleOptions options = new SampleOptions(data.ToBytes()))
             {
-                _channel.PushSample(data);
-            }
-            catch (FaultException<ChargingFault> ex)
-            {
-                Console.WriteLine("Sample rejected: " + ex.Detail.Message);
+                try
+                {
+                    _channel.PushSample(options);
+                }
+                catch (FaultException<ChargingFault> ex)
+                {
+                    Console.WriteLine("Sample rejected: " + ex.Detail.Message);
+                }
             }
         }
 

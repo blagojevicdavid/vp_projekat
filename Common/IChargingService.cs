@@ -11,7 +11,7 @@ namespace Common
 
         [OperationContract]
         [FaultContract(typeof(ChargingFault))]
-        void PushSample(ChargingData data);
+        void PushSample(SampleOptions options);
 
         [OperationContract]
         void EndSession(string vehicleId);
