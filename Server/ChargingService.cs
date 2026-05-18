@@ -10,20 +10,20 @@ namespace Server
     [ServiceBehavior(InstanceContextMode = InstanceContextMode.Single)]
     public class ChargingService : IChargingService, IDisposable
     {
-        // --- Dogadjaji (Zadatak 8) ---
+        //Dogadjaji (Zadatak 8)
         public event TransferStartedHandler OnTransferStarted;
         public event SampleReceivedHandler OnSampleReceived;
         public event TransferCompletedHandler OnTransferCompleted;
         public event WarningRaisedHandler OnWarningRaised;
 
-        // --- Stanje fajlova ---
+        //Stanje fajlova
         private FileStream _sessionFileStream;
         private StreamWriter _sessionWriter;
         private FileStream _rejectsFileStream;
         private StreamWriter _rejectsWriter;
         private bool _disposed = false;
 
-        // --- Stanje analitike (Zadaci 9 i 10) ---
+        //Stanje analitike (Zadaci 9 i 10)
         private double _prevCurrentAvg = double.NaN;
         private double _currentMean = 0;
         private int _currentCount = 0;
@@ -105,7 +105,7 @@ namespace Server
                 OnTransferCompleted(this, new TransferCompletedEventArgs(vehicleId));
         }
 
-        // --- Analitika ---
+        //Analitika
 
         private void ResetAnalyticsState()
         {
@@ -164,7 +164,7 @@ namespace Server
                 if (data.ApparentPowerAvg <= _prevApparentPowerAvg)
                 {
                     _apparentPowerStallCount++;
-                    if (_apparentPowerStallCount >= 5)
+                    if (_apparentPowerStallCount > 5)
                     {
                         RaiseWarning(data, "ApparentPowerStall", _prevApparentPowerAvg, data.ApparentPowerAvg,
                             string.Format("prividna snaga ne raste vec {0} redova", _apparentPowerStallCount));
@@ -195,7 +195,7 @@ namespace Server
                 : defaultValue;
         }
 
-        // --- Validacija i fajlovi ---
+        //Validacija i fajlovi (Zadatak 2)
 
         private string GetValidationError(ChargingData data)
         {
